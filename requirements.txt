@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+yfinance
+langchain
+langchain-groq
+langgraph
+pydantic
+python-dotenv
+beautifulsoup4
+requests
