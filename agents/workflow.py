@@ -4,13 +4,22 @@ from agents.tools import fetch_quant_data, fetch_news_headlines
 from agents.sentiment_agent import analyze_sentiment
 from agents.master_agent import analyze_quant_and_sentiment
 
+from agents.rag import store_news_in_qdrant
+
 def data_ingestion_node(state: AgentState) -> AgentState:
     """Fetches quantitative data and news headlines."""
     ticker = state["ticker"]
     
     # Fetch data
     state["quant_data"] = fetch_quant_data(ticker)
-    state["news_headlines"] = fetch_news_headlines(ticker)
+    news = fetch_news_headlines(ticker)
+    state["news_headlines"] = news
+    
+    # Store fetched news in Qdrant Vector DB
+    try:
+        store_news_in_qdrant(ticker, news)
+    except Exception as e:
+        print(f"Error storing news in Qdrant: {e}")
     
     return state
 

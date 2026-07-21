@@ -30,12 +30,34 @@ class AnalysisResponse(BaseModel):
     sentiment_score: float
     reasoning: str
 
+import time
+import json
+
+# Local In-Memory Cache (No Docker or Redis required!)
+local_cache = {}
+CACHE_TTL = 3600  # 1 hour in seconds
+
 @app.post("/analyze", response_model=AnalysisResponse)
 async def analyze_ticker(company_name: str, region: Region = Region.INDIA):
     """
     Analyzes a given stock ticker or company name and returns a Buy/Hold/Sell signal.
     """
     try:
+        cache_key = f"analyze:{company_name.lower()}:{region.value.lower()}"
+        
+        # Check cache
+        current_time = time.time()
+        # Bypass cache completely for now
+        # if cache_key in local_cache:
+        #     cached_data, timestamp = local_cache[cache_key]
+        #     # Check if TTL has expired
+        #     if current_time - timestamp < CACHE_TTL:
+        #         print("Serving from Local In-Memory Cache!")
+        #         return AnalysisResponse(**cached_data)
+        #     else:
+        #         # Expired
+        #         del local_cache[cache_key]
+                
         # Resolve friendly name to actual ticker symbol
         resolved_ticker = resolve_ticker(company_name, region=region)
         
@@ -46,12 +68,18 @@ async def analyze_ticker(company_name: str, region: Region = Region.INDIA):
         
         result = workflow_app.invoke(initial_state)
         
-        return AnalysisResponse(
+        response = AnalysisResponse(
             stock_symbol=result.get("ticker", resolved_ticker),
             signal=result.get("signal", "ERROR"),
             sentiment_score=result.get("sentiment_score", 0.0),
             reasoning=result.get("reasoning", "No reasoning provided.")
         )
+        
+        # Store in local cache only if it was a successful analysis
+        if response.signal != "ERROR":
+            local_cache[cache_key] = (response.dict(), current_time)
+            
+        return response
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

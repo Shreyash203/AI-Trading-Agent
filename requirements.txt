@@ -8,3 +8,6 @@ pydantic
 python-dotenv
 beautifulsoup4
 requests
+qdrant-client
+langchain-huggingface
+sentence-transformers
