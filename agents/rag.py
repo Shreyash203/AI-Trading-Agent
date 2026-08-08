@@ -61,11 +61,11 @@ def retrieve_relevant_news(ticker: str, query: str = "bullish bearish financial 
         
     query_vector = embeddings.embed_query(query)
     
-    search_result = client.search(
+    search_result = client.query_points(
         collection_name=collection_name,
-        query_vector=query_vector,
+        query=query_vector,
         limit=limit
-    )
+    ).points
     
     if not search_result:
         return "No relevant news found."
@@ -76,3 +76,80 @@ def retrieve_relevant_news(ticker: str, query: str = "bullish bearish financial 
         context.append(f"- {text}")
         
     return "\n".join(context)
+
+from langchain_community.document_loaders import PyPDFLoader
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+
+def has_pdf_for_ticker(ticker: str) -> bool:
+    """Checks if the PDF collection already exists and has data."""
+    collection_name = f"pdf_{ticker.lower()}"
+    try:
+        info = client.get_collection(collection_name=collection_name)
+        return info.points_count > 0
+    except Exception:
+        return False
+
+def store_pdf_in_qdrant(ticker: str, file_path: str):
+    """Loads a PDF, chunks it, and batch embeds it into Qdrant."""
+    if not file_path:
+        return
+        
+    print(f"Autonomous Agent: Chunking and Embedding {file_path}...")
+    collection_name = f"pdf_{ticker.lower()}"
+    init_collection(collection_name)
+    
+    loader = PyPDFLoader(file_path)
+    docs = loader.load()
+    
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+    splits = text_splitter.split_documents(docs)
+    
+    texts = [split.page_content for split in splits]
+    
+    # Batch embedding is significantly faster!
+    vector_list = embeddings.embed_documents(texts)
+    
+    points = []
+    for i, (text, vector) in enumerate(zip(texts, vector_list)):
+        points.append(
+            PointStruct(
+                id=str(uuid.uuid4()),
+                vector=vector,
+                payload={"text": text, "source": file_path, "chunk_id": i}
+            )
+        )
+        
+    if points:
+        client.upsert(
+            collection_name=collection_name,
+            points=points,
+            wait=True
+        )
+    print(f"Autonomous Agent: Successfully saved {len(points)} PDF chunks to memory!")
+
+def retrieve_pdf_context(ticker: str, query: str = "financial highlights revenue risks", limit: int = 4) -> str:
+    """Retrieves deep fundamental insights from the PDF database."""
+    collection_name = f"pdf_{ticker.lower()}"
+    
+    try:
+        client.get_collection(collection_name=collection_name)
+    except Exception:
+        return "No deep fundamental PDF data found for this stock."
+        
+    query_vector = embeddings.embed_query(query)
+    
+    search_result = client.query_points(
+        collection_name=collection_name,
+        query=query_vector,
+        limit=limit
+    ).points
+    
+    if not search_result:
+        return "No relevant insights found in PDF."
+        
+    context = []
+    for hit in search_result:
+        text = hit.payload.get("text", "")
+        context.append(f"- {text}")
+        
+    return "\n\n".join(context)

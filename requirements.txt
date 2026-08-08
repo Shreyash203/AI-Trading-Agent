@@ -11,3 +11,7 @@ requests
 qdrant-client
 langchain-huggingface
 sentence-transformers
+duckduckgo-search
+pypdf
+langchain-text-splitters
+langchain-community

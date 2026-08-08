@@ -1,17 +1,19 @@
 from langgraph.graph import StateGraph, END
 from agents.state import AgentState
-from agents.tools import fetch_quant_data, fetch_news_headlines
+from agents.tools import fetch_quant_data, fetch_news_headlines, fetch_and_download_pdf
 from agents.sentiment_agent import analyze_sentiment
 from agents.master_agent import analyze_quant_and_sentiment
 
-from agents.rag import store_news_in_qdrant
+from agents.rag import store_news_in_qdrant, has_pdf_for_ticker, store_pdf_in_qdrant
 
 def data_ingestion_node(state: AgentState) -> AgentState:
-    """Fetches quantitative data and news headlines."""
+    """Fetches quantitative data, news headlines, and deep PDF fundamentals."""
     ticker = state["ticker"]
     
-    # Fetch data
+    # Fetch quantitative data
     state["quant_data"] = fetch_quant_data(ticker)
+    
+    # Always fetch short-term news headlines
     news = fetch_news_headlines(ticker)
     state["news_headlines"] = news
     
@@ -20,6 +22,17 @@ def data_ingestion_node(state: AgentState) -> AgentState:
         store_news_in_qdrant(ticker, news)
     except Exception as e:
         print(f"Error storing news in Qdrant: {e}")
+        
+    # PDF Long-Term Fundamentals RAG
+    if has_pdf_for_ticker(ticker):
+        print(f"Autonomous Agent: PDF data already in Qdrant memory for {ticker}. Skipping download!")
+    else:
+        pdf_path = fetch_and_download_pdf(ticker)
+        if pdf_path:
+            try:
+                store_pdf_in_qdrant(ticker, pdf_path)
+            except Exception as e:
+                print(f"Error storing PDF in Qdrant: {e}")
     
     return state
 

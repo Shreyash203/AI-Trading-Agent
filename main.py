@@ -47,16 +47,15 @@ async def analyze_ticker(company_name: str, region: Region = Region.INDIA):
         
         # Check cache
         current_time = time.time()
-        # Bypass cache completely for now
-        # if cache_key in local_cache:
-        #     cached_data, timestamp = local_cache[cache_key]
-        #     # Check if TTL has expired
-        #     if current_time - timestamp < CACHE_TTL:
-        #         print("Serving from Local In-Memory Cache!")
-        #         return AnalysisResponse(**cached_data)
-        #     else:
-        #         # Expired
-        #         del local_cache[cache_key]
+        # Check if TTL has expired
+        if cache_key in local_cache:
+            cached_data, timestamp = local_cache[cache_key]
+            if current_time - timestamp < CACHE_TTL:
+                print("Serving from Local In-Memory Cache!")
+                return AnalysisResponse(**cached_data)
+            else:
+                # Expired
+                del local_cache[cache_key]
                 
         # Resolve friendly name to actual ticker symbol
         resolved_ticker = resolve_ticker(company_name, region=region)

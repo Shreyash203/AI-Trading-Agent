@@ -145,3 +145,93 @@ def fetch_news_headlines(ticker: str) -> List[str]:
         error_msg = f"Error fetching news RSS: {e}"
         print(error_msg)
         return [error_msg]
+
+import os
+import urllib.request
+
+import json
+import textwrap
+
+def fetch_and_download_pdf(ticker: str) -> str:
+    """
+    Autonomously searches the SEC EDGAR API for the latest 10-K Annual Report,
+    downloads the HTML, and converts it to a local PDF for RAG.
+    """
+    # Create the local research folder if it doesn't exist
+    os.makedirs("local_research", exist_ok=True)
+    pdf_path = f"local_research/{ticker.upper()}_report.pdf"
+    
+    # If we already downloaded it, return it
+    if os.path.exists(pdf_path):
+        return pdf_path
+        
+    print(f"Autonomous Agent: Searching SEC EDGAR dynamically for {ticker} Annual Report...")
+    clean_ticker = ticker.split(".")[0].upper()
+    headers = {'User-Agent': 'QuantAI_Agent test@example.com'}
+    
+    try:
+        # Step 1: Map Ticker to CIK
+        tickers_url = "https://www.sec.gov/files/company_tickers.json"
+        req = urllib.request.Request(tickers_url, headers=headers)
+        resp = urllib.request.urlopen(req)
+        tickers_data = json.loads(resp.read())
+        
+        cik = None
+        for key, company in tickers_data.items():
+            if company.get('ticker') == clean_ticker:
+                cik = str(company.get('cik_str')).zfill(10)
+                break
+                
+        if not cik:
+            print(f"Autonomous Agent: {ticker} not found in US SEC database. Skipping PDF analysis.")
+            return ""
+            
+        # Step 2: Fetch Submissions
+        print(f"Autonomous Agent: Found CIK {cik} for {ticker}. Fetching filings...")
+        sub_url = f"https://data.sec.gov/submissions/CIK{cik}.json"
+        sub_req = urllib.request.Request(sub_url, headers=headers)
+        sub_resp = urllib.request.urlopen(sub_req)
+        sub_data = json.loads(sub_resp.read())
+        
+        filings = sub_data['filings']['recent']
+        latest_10k_url = ""
+        for i, form in enumerate(filings['form']):
+            if form == '10-K':
+                acc_num = filings['accessionNumber'][i].replace('-', '')
+                doc_name = filings['primaryDocument'][i]
+                cik_stripped = cik.lstrip('0')
+                latest_10k_url = f"https://www.sec.gov/Archives/edgar/data/{cik_stripped}/{acc_num}/{doc_name}"
+                break
+                
+        if not latest_10k_url:
+            print(f"Autonomous Agent: No recent 10-K found for {ticker}.")
+            return ""
+            
+        print(f"Autonomous Agent: Found latest 10-K HTML at {latest_10k_url}. Converting to PDF...")
+        html_req = urllib.request.Request(latest_10k_url, headers=headers)
+        html_data = urllib.request.urlopen(html_req).read()
+        
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(html_data, 'html.parser')
+        text = soup.get_text(separator=' ', strip=True)
+        text = text[:50000] # Truncate for speed/memory
+        
+        from fpdf import FPDF
+        class PDF(FPDF):
+            pass
+        pdf = PDF()
+        pdf.add_page()
+        pdf.set_font("Arial", size=11)
+        safe_text = text.encode('latin-1', 'replace').decode('latin-1')
+        wrapped_text = textwrap.fill(safe_text, width=90)
+        
+        for line in wrapped_text.split('\n'):
+            pdf.cell(0, 5, line, new_x='LMARGIN', new_y='NEXT')
+            
+        pdf.output(pdf_path)
+        print(f"Autonomous Agent: Successfully dynamically generated {pdf_path}")
+        return pdf_path
+        
+    except Exception as e:
+        print(f"Autonomous Agent: Dynamic SEC fetching failed for {ticker}: {e}")
+        return ""

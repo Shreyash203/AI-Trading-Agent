@@ -4,12 +4,17 @@ from langchain_groq import ChatGroq
 from langchain_core.prompts import PromptTemplate
 from agents.state import AgentState
 
+from agents.rag import retrieve_pdf_context
+
 def analyze_quant_and_sentiment(state: AgentState) -> AgentState:
-    """Combines quantitative data and sentiment to output a Buy/Hold/Sell signal."""
+    """Combines quantitative data, short-term sentiment, and long-term PDF fundamentals."""
     ticker = state["ticker"]
     quant_data = state.get("quant_data", {})
     sentiment_score = state.get("sentiment_score", 0.0)
     sentiment_reasoning = state.get("sentiment_reasoning", "")
+    
+    # Retrieve deep PDF insights
+    pdf_context = retrieve_pdf_context(ticker)
     
     # Check if quant_data has error
     if "error" in quant_data:
@@ -24,14 +29,17 @@ def analyze_quant_and_sentiment(state: AgentState) -> AgentState:
     )
     
     prompt = PromptTemplate(
-        input_variables=["ticker", "quant_data", "sentiment_score", "sentiment_reasoning"],
+        input_variables=["ticker", "quant_data", "sentiment_score", "sentiment_reasoning", "pdf_context"],
         template=(
             "You are an expert quantitative trader and portfolio manager. "
-            "Analyze the following data for the stock ticker {ticker}.\n\n"
+            "Analyze the following short-term and long-term data for the stock ticker {ticker}.\n\n"
+            "=== SHORT-TERM DATA ===\n"
             "Quantitative Data:\n{quant_data}\n\n"
             "News Sentiment Score (from -1.0 to 1.0):\n{sentiment_score}\n"
             "News Sentiment Reasoning:\n{sentiment_reasoning}\n\n"
-            "Based on this information, output a deterministic trading signal (BUY, HOLD, or SELL) and a brief reasoning.\n"
+            "=== LONG-TERM FUNDAMENTALS ===\n"
+            "Deep insights retrieved from the company's Annual Report/PDF:\n{pdf_context}\n\n"
+            "Based on this combined short-term and long-term information, output a deterministic trading signal (BUY, HOLD, or SELL) and a brief reasoning.\n"
             "You MUST output your response as a valid JSON object with the following schema exactly:\n"
             '{{"signal": "BUY", "reasoning": "Your reasoning here."}}'
         )
@@ -45,7 +53,8 @@ def analyze_quant_and_sentiment(state: AgentState) -> AgentState:
         "ticker": ticker, 
         "quant_data": quant_str,
         "sentiment_score": sentiment_score,
-        "sentiment_reasoning": sentiment_reasoning
+        "sentiment_reasoning": sentiment_reasoning,
+        "pdf_context": pdf_context
     })
     
     output = response.content.strip()
