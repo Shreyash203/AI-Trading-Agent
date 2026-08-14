@@ -9,7 +9,13 @@ client = QdrantClient(path="./qdrant_db")
 
 # Initialize Embeddings
 embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-VECTOR_SIZE = 384  # Size for all-MiniLM-L6-v2
+
+# Dynamically determine vector size to make the architecture model-agnostic
+try:
+    _dummy_vector = embeddings.embed_query("test")
+    VECTOR_SIZE = len(_dummy_vector)
+except Exception:
+    VECTOR_SIZE = 384  # Fallback
 
 def init_collection(collection_name: str):
     """Ensure the collection exists in Qdrant."""

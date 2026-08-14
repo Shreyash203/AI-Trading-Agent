@@ -5,13 +5,17 @@ from agents.state import AgentState
 
 from agents.rag import retrieve_relevant_news
 
-def analyze_sentiment(state: AgentState) -> AgentState:
+import asyncio
+
+async def analyze_sentiment(state: AgentState) -> AgentState:
     """Analyzes the sentiment of the news headlines using Groq LLM."""
     ticker = state["ticker"]
     
     # Retrieve relevant news context using RAG
     try:
-        headlines_str = retrieve_relevant_news(ticker, query="bullish bearish financial outlook performance news events", limit=10)
+        headlines_str = await asyncio.to_thread(
+            retrieve_relevant_news, ticker, query="bullish bearish financial outlook performance news events", limit=10
+        )
     except Exception as e:
         headlines_str = f"Error retrieving context: {e}"
     
@@ -43,7 +47,7 @@ def analyze_sentiment(state: AgentState) -> AgentState:
     chain = prompt | llm
     
     # We already have headlines_str from RAG
-    response = chain.invoke({"ticker": ticker, "headlines": headlines_str})
+    response = await chain.ainvoke({"ticker": ticker, "headlines": headlines_str})
     
     output = response.content.strip()
     

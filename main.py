@@ -58,14 +58,14 @@ async def analyze_ticker(company_name: str, region: Region = Region.INDIA):
                 del local_cache[cache_key]
                 
         # Resolve friendly name to actual ticker symbol
-        resolved_ticker = resolve_ticker(company_name, region=region)
+        resolved_ticker = await resolve_ticker(company_name, region=region)
         
         # Ensure ticker is uppercase
         resolved_ticker = resolved_ticker.upper()
         
         initial_state = {"ticker": resolved_ticker}
         
-        result = workflow_app.invoke(initial_state)
+        result = await workflow_app.ainvoke(initial_state)
         
         response = AnalysisResponse(
             stock_symbol=result.get("ticker", resolved_ticker),
@@ -84,4 +84,6 @@ async def analyze_ticker(company_name: str, region: Region = Region.INDIA):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    import os
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)

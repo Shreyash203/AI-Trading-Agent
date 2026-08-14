@@ -6,33 +6,45 @@ from agents.master_agent import analyze_quant_and_sentiment
 
 from agents.rag import store_news_in_qdrant, has_pdf_for_ticker, store_pdf_in_qdrant
 
-def data_ingestion_node(state: AgentState) -> AgentState:
+import asyncio
+
+async def data_ingestion_node(state: AgentState) -> AgentState:
     """Fetches quantitative data, news headlines, and deep PDF fundamentals."""
     ticker = state["ticker"]
     
-    # Fetch quantitative data
-    state["quant_data"] = fetch_quant_data(ticker)
+    # Fetch quantitative data, news, and check PDF cache CONCURRENTLY
+    quant_data, news, has_pdf = await asyncio.gather(
+        fetch_quant_data(ticker),
+        fetch_news_headlines(ticker),
+        asyncio.to_thread(has_pdf_for_ticker, ticker)
+    )
     
-    # Always fetch short-term news headlines
-    news = fetch_news_headlines(ticker)
+    state["quant_data"] = quant_data
     state["news_headlines"] = news
     
-    # Store fetched news in Qdrant Vector DB
-    try:
-        store_news_in_qdrant(ticker, news)
-    except Exception as e:
-        print(f"Error storing news in Qdrant: {e}")
-        
-    # PDF Long-Term Fundamentals RAG
-    if has_pdf_for_ticker(ticker):
-        print(f"Autonomous Agent: PDF data already in Qdrant memory for {ticker}. Skipping download!")
-    else:
-        pdf_path = fetch_and_download_pdf(ticker)
-        if pdf_path:
-            try:
-                store_pdf_in_qdrant(ticker, pdf_path)
-            except Exception as e:
-                print(f"Error storing PDF in Qdrant: {e}")
+    # Handle the Qdrant DB storing and PDF downloads concurrently
+    async def handle_news_storage():
+        try:
+            await asyncio.to_thread(store_news_in_qdrant, ticker, news)
+        except Exception as e:
+            print(f"Error storing news in Qdrant: {e}")
+            
+    async def handle_pdf_storage():
+        if has_pdf:
+            print(f"Autonomous Agent: PDF data already in Qdrant memory for {ticker}. Skipping download!")
+        else:
+            pdf_path = await fetch_and_download_pdf(ticker)
+            if pdf_path:
+                try:
+                    await asyncio.to_thread(store_pdf_in_qdrant, ticker, pdf_path)
+                except Exception as e:
+                    print(f"Error storing PDF in Qdrant: {e}")
+
+    # Fire off both storage tasks simultaneously
+    await asyncio.gather(
+        handle_news_storage(),
+        handle_pdf_storage()
+    )
     
     return state
 

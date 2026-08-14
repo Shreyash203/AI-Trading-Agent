@@ -1,5 +1,6 @@
 import yfinance as yf
-import requests
+import asyncio
+import httpx
 from bs4 import BeautifulSoup
 from typing import Dict, Any, List
 
@@ -16,14 +17,15 @@ REGION_SUFFIXES = {
     "US": ()
 }
 
-def resolve_ticker(query: str, region: str = "India") -> str:
+async def resolve_ticker(query: str, region: str = "India") -> str:
     """Uses Yahoo Finance Search API to resolve a company name to a ticker."""
     url = f"https://query2.finance.yahoo.com/v1/finance/search?q={query}"
     headers = {"User-Agent": "Mozilla/5.0"}
     try:
-        response = requests.get(url, headers=headers)
-        response.raise_for_status()
-        data = response.json()
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, headers=headers)
+            response.raise_for_status()
+            data = response.json()
         quotes = data.get("quotes", [])
         
         if not quotes:
@@ -54,11 +56,14 @@ def resolve_ticker(query: str, region: str = "India") -> str:
         print(f"Error resolving ticker: {e}")
         return query
 
-def fetch_quant_data(ticker: str) -> Dict[str, Any]:
-    """Fetches quantitative data from yfinance for a given ticker."""
+async def fetch_quant_data(ticker: str) -> Dict[str, Any]:
+    """Fetches quantitative data from yfinance for a given ticker without blocking."""
     try:
-        stock = yf.Ticker(ticker)
-        hist = stock.history(period="1y")
+        def _get_hist():
+            stock = yf.Ticker(ticker)
+            return stock.history(period="1y")
+            
+        hist = await asyncio.to_thread(_get_hist)
         
         if hist.empty:
             print(f"Warning: yfinance failed to fetch data for {ticker}. Using Hybrid Fallback generator.")
@@ -116,7 +121,7 @@ def fetch_quant_data(ticker: str) -> Dict[str, Any]:
     except Exception as e:
         return {"error": str(e)}
 
-def fetch_news_headlines(ticker: str) -> List[str]:
+async def fetch_news_headlines(ticker: str) -> List[str]:
     """Scrapes recent news headlines from Yahoo Finance RSS feed for the ticker."""
     # Strip region suffixes (e.g. .NS, .BO) for better results
     clean_ticker = ticker.split(".")[0]
@@ -127,8 +132,9 @@ def fetch_news_headlines(ticker: str) -> List[str]:
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
     }
     try:
-        response = requests.get(url, headers=headers)
-        response.raise_for_status()
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, headers=headers)
+            response.raise_for_status()
         
         # Parse RSS XML using built-in ElementTree
         import xml.etree.ElementTree as ET
@@ -147,12 +153,11 @@ def fetch_news_headlines(ticker: str) -> List[str]:
         return [error_msg]
 
 import os
-import urllib.request
 
 import json
 import textwrap
 
-def fetch_and_download_pdf(ticker: str) -> str:
+async def fetch_and_download_pdf(ticker: str) -> str:
     """
     Autonomously searches the SEC EDGAR API for the latest 10-K Annual Report,
     downloads the HTML, and converts it to a local PDF for RAG.
@@ -172,9 +177,9 @@ def fetch_and_download_pdf(ticker: str) -> str:
     try:
         # Step 1: Map Ticker to CIK
         tickers_url = "https://www.sec.gov/files/company_tickers.json"
-        req = urllib.request.Request(tickers_url, headers=headers)
-        resp = urllib.request.urlopen(req)
-        tickers_data = json.loads(resp.read())
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(tickers_url, headers=headers)
+            tickers_data = resp.json()
         
         cik = None
         for key, company in tickers_data.items():
@@ -189,9 +194,9 @@ def fetch_and_download_pdf(ticker: str) -> str:
         # Step 2: Fetch Submissions
         print(f"Autonomous Agent: Found CIK {cik} for {ticker}. Fetching filings...")
         sub_url = f"https://data.sec.gov/submissions/CIK{cik}.json"
-        sub_req = urllib.request.Request(sub_url, headers=headers)
-        sub_resp = urllib.request.urlopen(sub_req)
-        sub_data = json.loads(sub_resp.read())
+        async with httpx.AsyncClient() as client:
+            sub_resp = await client.get(sub_url, headers=headers)
+            sub_data = sub_resp.json()
         
         filings = sub_data['filings']['recent']
         latest_10k_url = ""
@@ -208,8 +213,9 @@ def fetch_and_download_pdf(ticker: str) -> str:
             return ""
             
         print(f"Autonomous Agent: Found latest 10-K HTML at {latest_10k_url}. Converting to PDF...")
-        html_req = urllib.request.Request(latest_10k_url, headers=headers)
-        html_data = urllib.request.urlopen(html_req).read()
+        async with httpx.AsyncClient() as client:
+            html_resp = await client.get(latest_10k_url, headers=headers)
+            html_data = html_resp.content
         
         from bs4 import BeautifulSoup
         soup = BeautifulSoup(html_data, 'html.parser')

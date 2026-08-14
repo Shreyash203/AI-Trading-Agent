@@ -6,7 +6,9 @@ from agents.state import AgentState
 
 from agents.rag import retrieve_pdf_context
 
-def analyze_quant_and_sentiment(state: AgentState) -> AgentState:
+import asyncio
+
+async def analyze_quant_and_sentiment(state: AgentState) -> AgentState:
     """Combines quantitative data, short-term sentiment, and long-term PDF fundamentals."""
     ticker = state["ticker"]
     quant_data = state.get("quant_data", {})
@@ -14,7 +16,7 @@ def analyze_quant_and_sentiment(state: AgentState) -> AgentState:
     sentiment_reasoning = state.get("sentiment_reasoning", "")
     
     # Retrieve deep PDF insights
-    pdf_context = retrieve_pdf_context(ticker)
+    pdf_context = await asyncio.to_thread(retrieve_pdf_context, ticker)
     
     # Check if quant_data has error
     if "error" in quant_data:
@@ -49,7 +51,7 @@ def analyze_quant_and_sentiment(state: AgentState) -> AgentState:
     
     # We serialize quant_data for the prompt
     quant_str = json.dumps(quant_data, indent=2)
-    response = chain.invoke({
+    response = await chain.ainvoke({
         "ticker": ticker, 
         "quant_data": quant_str,
         "sentiment_score": sentiment_score,
