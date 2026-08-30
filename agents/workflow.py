@@ -48,6 +48,13 @@ async def data_ingestion_node(state: AgentState) -> AgentState:
     
     return state
 
+# Define a conditional router
+def route_after_data(state: AgentState) -> str:
+    """Routes to END if data ingestion failed, otherwise proceeds to sentiment."""
+    if "error" in state.get("quant_data", {}):
+        return "end"
+    return "sentiment_analysis"
+
 # Define a new graph
 workflow = StateGraph(AgentState)
 
@@ -58,7 +65,17 @@ workflow.add_node("master_quant", analyze_quant_and_sentiment)
 
 # Define edges
 workflow.set_entry_point("data_ingestion")
-workflow.add_edge("data_ingestion", "sentiment_analysis")
+
+# Replace static edge with conditional edge
+workflow.add_conditional_edges(
+    "data_ingestion",
+    route_after_data,
+    {
+        "sentiment_analysis": "sentiment_analysis",
+        "end": END
+    }
+)
+
 workflow.add_edge("sentiment_analysis", "master_quant")
 workflow.add_edge("master_quant", END)
 

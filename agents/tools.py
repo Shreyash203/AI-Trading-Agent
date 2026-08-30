@@ -132,7 +132,7 @@ async def fetch_news_headlines(ticker: str) -> List[str]:
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
     }
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(follow_redirects=True) as client:
             response = await client.get(url, headers=headers)
             response.raise_for_status()
         
