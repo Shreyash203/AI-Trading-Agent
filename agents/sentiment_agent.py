@@ -30,7 +30,7 @@ async def analyze_sentiment(state: AgentState) -> AgentState:
         return state
 
     llm = ChatGroq(
-        model="qwen/qwen3.6-27b",  # Qwen supports massive context windows for RAG
+        model="openai/gpt-oss-20b",  # Switched to OpenAI OSS model for context handling
         api_key=os.environ.get("GROQ_API_KEY"),
         temperature=0.5
     )
