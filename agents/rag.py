@@ -1,14 +1,18 @@
 import uuid
+import os
 from typing import List, Dict, Any
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import Distance, VectorParams, PointStruct
-from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_google_genai import GoogleGenerativeAIEmbeddings
 
 # Initialize Qdrant Client (File-based local storage, no Docker required!)
 client = QdrantClient(path="./qdrant_db")
 
-# Initialize Embeddings
-embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+# Initialize Embeddings (Cloud API - zero RAM footprint!)
+embeddings = GoogleGenerativeAIEmbeddings(
+    model="models/text-embedding-004",
+    google_api_key=os.environ.get("GOOGLE_API_KEY")
+)
 
 # Dynamically determine vector size to make the architecture model-agnostic
 try:

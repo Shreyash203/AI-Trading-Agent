@@ -9,9 +9,10 @@ python-dotenv
 beautifulsoup4
 requests
 qdrant-client
-langchain-huggingface
-sentence-transformers
+langchain-google-genai
 duckduckgo-search
 pypdf
 langchain-text-splitters
 langchain-community
+httpx
+fpdf2

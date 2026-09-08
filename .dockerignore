@@ -1,6 +1,5 @@
 venv/
 __pycache__/
-*.pyc
 .env
 qdrant_db/
 local_research/
