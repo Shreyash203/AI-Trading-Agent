@@ -10,7 +10,7 @@ client = QdrantClient(path="./qdrant_db")
 
 # Initialize Embeddings (Cloud API - zero RAM footprint!)
 embeddings = GoogleGenerativeAIEmbeddings(
-    model="models/text-embedding-004",
+    model="gemini-embedding-2-preview",
     google_api_key=os.environ.get("GOOGLE_API_KEY")
 )
 
