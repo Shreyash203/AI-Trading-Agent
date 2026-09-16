@@ -25,9 +25,20 @@ async def analyze_sentiment(state: AgentState) -> AgentState:
         headlines_str = f"Error retrieving context: {e}"
     
     if not headlines_str or headlines_str.startswith("No historical") or headlines_str.startswith("No relevant") or "Error" in headlines_str:
-        state["sentiment_score"] = 0.02 # Debugging value
-        state["sentiment_reasoning"] = f"RAG DEBUG INFO: {headlines_str}"
-        return state
+        print(f"[{ticker}] Local Qdrant DB empty. Falling back to live web search via DuckDuckGo...")
+        try:
+            from langchain_community.tools import DuckDuckGoSearchRun
+            search = DuckDuckGoSearchRun()
+            # Perform live web search for recent news
+            headlines_str = await asyncio.to_thread(search.invoke, f"{ticker} stock financial news recent")
+            
+            if not headlines_str:
+                raise ValueError("Web search returned empty.")
+        except Exception as e:
+            # Absolute fallback if BOTH Qdrant and the Internet fail
+            state["sentiment_score"] = 0.02
+            state["sentiment_reasoning"] = f"RAG & Web Search failed: {e}"
+            return state
 
     llm = ChatGroq(
         model="openai/gpt-oss-20b",  # Switched to OpenAI OSS model for context handling
