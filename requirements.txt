@@ -10,7 +10,7 @@ beautifulsoup4
 requests
 qdrant-client
 langchain-google-genai
-duckduckgo-search
+ddgs
 pypdf
 langchain-text-splitters
 langchain-community
