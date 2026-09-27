@@ -42,15 +42,19 @@ async def analyze_quant_and_sentiment(state: AgentState) -> AgentState:
         input_variables=["ticker", "quant_data", "sentiment_score", "sentiment_reasoning", "pdf_context"],
         partial_variables={"format_instructions": parser.get_format_instructions()},
         template=(
-            "You are an expert quantitative trader and portfolio manager. "
-            "Analyze the following short-term and long-term data for the stock ticker {ticker}.\n\n"
-            "=== SHORT-TERM DATA ===\n"
-            "Quantitative Data:\n{quant_data}\n\n"
-            "News Sentiment Score (from -1.0 to 1.0):\n{sentiment_score}\n"
-            "News Sentiment Reasoning:\n{sentiment_reasoning}\n\n"
-            "=== LONG-TERM FUNDAMENTALS ===\n"
-            "Deep insights retrieved from the company's Annual Report/PDF:\n{pdf_context}\n\n"
-            "Based on this combined short-term and long-term information, output a deterministic trading signal.\n"
+            "You are an elite quantitative hedge fund algorithm. Your #1 rule is Capital Preservation.\n"
+            "Analyze the following data for the stock ticker {ticker}.\n\n"
+            "=== SHORT-TERM QUANTITATIVE DATA ===\n"
+            "{quant_data}\n\n"
+            "=== SHORT-TERM SENTIMENT ===\n"
+            "News Sentiment Score (from -1.0 to 1.0): {sentiment_score}\n"
+            "Reasoning: {sentiment_reasoning}\n\n"
+            "=== LONG-TERM FUNDAMENTALS (SEC PDF) ===\n"
+            "{pdf_context}\n\n"
+            "TRADING RULES:\n"
+            "1. ONLY output BUY if RSI is < 40 AND MACD crosses above the Signal line (or Price touches Lower Bollinger Band), AND Sentiment is not deeply negative.\n"
+            "2. ONLY output SELL if RSI is > 65 OR if Price severely breaks below the 50-Day MA.\n"
+            "3. If conditions are not perfectly met, or if there is conflicting fundamental data, output HOLD. Do not force trades.\n\n"
             "{format_instructions}\n"
         )
     )

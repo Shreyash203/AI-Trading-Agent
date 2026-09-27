@@ -107,6 +107,12 @@ async def fetch_quant_data(ticker: str) -> Dict[str, Any]:
         current_macd = float(macd.iloc[-1]) if not macd.empty else None
         current_macd_signal = float(signal_line.iloc[-1]) if not signal_line.empty else None
 
+        # Bollinger Bands (Volatility)
+        bb_mid = hist['Close'].rolling(window=20).mean()
+        bb_std = hist['Close'].rolling(window=20).std()
+        bb_lower = bb_mid - (2 * bb_std)
+        current_bb_lower = float(bb_lower.iloc[-1]) if not bb_lower.empty else None
+
         return {
             "current_price": current_price,
             "volume": volume,
@@ -116,7 +122,8 @@ async def fetch_quant_data(ticker: str) -> Dict[str, Any]:
             "200_day_ma": ma_200,
             "rsi_14": current_rsi,
             "macd": current_macd,
-            "macd_signal": current_macd_signal
+            "macd_signal": current_macd_signal,
+            "bb_lower": current_bb_lower
         }
     except Exception as e:
         return {"error": str(e)}
