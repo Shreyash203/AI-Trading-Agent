@@ -1,0 +1,4 @@
+{"case_id":"missing-market-data","ticker":"INVALID-TICKER","must_abstain":true,"expected_source_urls":[]}
+{"case_id":"missing-news","ticker":"FIXTURE_NO_NEWS","must_abstain":true,"expected_source_urls":[]}
+{"case_id":"stale-news","ticker":"FIXTURE_STALE_NEWS","must_abstain":true,"expected_source_urls":[]}
+{"case_id":"provider-failure","ticker":"FIXTURE_PROVIDER_DOWN","must_abstain":true,"expected_source_urls":[]}
